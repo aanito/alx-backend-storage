@@ -1,54 +1,55 @@
 #!/usr/bin/env python3
-"""
-Write a Python script that provides some
-stats about Nginx logs stored in MongoDB"""
+'''Task 15's module.
+'''
 from pymongo import MongoClient
 
 
-def main():
-    """provides some stats about Nginx logs stored in MongoDB"""
+def print_nginx_request_logs(nginx_collection):
+    '''Prints stats about Nginx request logs.
+    '''
+    print('{} logs'.format(nginx_collection.count_documents({})))
+    print('Methods:')
+    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    for method in methods:
+        req_count = len(list(nginx_collection.find({'method': method})))
+        print('\tmethod {}: {}'.format(method, req_count))
+    status_checks_count = len(list(
+        nginx_collection.find({'method': 'GET', 'path': '/status'})
+    ))
+    print('{} status check'.format(status_checks_count))
+
+
+def print_top_ips(server_collection):
+    '''Prints statistics about the top 10 HTTP IPs in a collection.
+    '''
+    print('IPs:')
+    request_logs = server_collection.aggregate(
+        [
+            {
+                '$group': {'_id': "$ip", 'totalRequests': {'$sum': 1}}
+            },
+            {
+                '$sort': {'totalRequests': -1}
+            },
+            {
+                '$limit': 10
+            },
+        ]
+    )
+    for request_log in request_logs:
+        ip = request_log['_id']
+        ip_requests_count = request_log['totalRequests']
+        print('\t{}: {}'.format(ip, ip_requests_count))
+
+
+def run():
+    '''Provides some stats about Nginx logs stored in MongoDB.
+    '''
     client = MongoClient('mongodb://127.0.0.1:27017')
-    logs = client.logs.nginx
-    print("{} logs".format(logs.count_documents({})))
-    print("Methods:")
-    print("\tmethod GET: {}".
-          format(logs.count_documents({"method": "GET"})))
-    print("\tmethod POST: {}".
-          format(logs.count_documents({"method": "POST"})))
-    print("\tmethod PUT: {}".
-          format(logs.count_documents({"method": "PUT"})))
-    print("\tmethod PATCH: {}".
-          format(logs.count_documents({"method": "PATCH"})))
-    print("\tmethod DELETE: {}".
-          format(logs.count_documents({"method": "DELETE"})))
-    print("{} status check".
-          format(logs.count_documents({"method": "GET", "path": "/status"})))
-    new_list = []
-    new_dict = {"count": 0}
-    my_list = list(logs.find())
-    count = 0
-    another = 0
-    for i in range(len(my_list)):
-        if len(new_list) != 0:
-            for m in range(len(new_list)):
-                if my_list[i]["ip"] == new_list[m]["ip"]:
-                    new_list[m]["count"] += 1
-                else:
-                    new_dict["ip"] = my_list[i]["ip"]
-                    new_dict["count"] += 1
-                    new_list.append(new_dict)
-                    new_dict = {"count": 0}
-        else:
-            new_dict["ip"] = my_list[i]["ip"]
-            new_dict["count"] += 1
-            new_list.append(new_dict)
-            new_dict = {"count": 0}
-
-    print("IPs:")
-    print(new_list)
+    print_nginx_request_logs(client.logs.nginx)
+    print_top_ips(client.logs.nginx)
 
 
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    run()
     
