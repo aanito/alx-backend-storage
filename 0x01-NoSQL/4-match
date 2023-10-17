@@ -1,0 +1,2 @@
+//Filter all documents where the name equals 'Holberton school'
+db.school.find({ name: "Holberton school"})
